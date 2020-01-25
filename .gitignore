@@ -1,0 +1,10 @@
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmx
+*.fls
+*.log
+*.xml
+*.gz
+.ipynb_checkpoints
