@@ -1,0 +1,128 @@
+\documentclass[11pt,wide]{mwart}
+\usepackage[OT4,plmath]{polski}
+\usepackage{graphicx}
+\usepackage{empheq}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{biblatex}
+\usepackage{amssymb}
+
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+\begin{document}
+\date{Wrocław, \today}
+\title{\LARGE\textbf{Całka Clenshawa-Curtisa}\\Clenshaw-Curtis quadrature}
+\author{Bartosz Brzoza\thanks{\textit{E-mail}: \texttt{309426@ii.uni.wroc.pl}}}
+\maketitle
+
+\section{Abstract}
+We consider the problem of numerical integration.
+A particular method called the Clenshaw-Curtis quadrature is presented,
+explained and then evaluated. An efficient implementation in Julia
+is also provided as well as benchmarking code which shows off its effectiveness and limitations.
+A brief discussion of numerical results follows.
+
+\section{Specyfikacja problemu}
+Mając funkcję $f(x)$ określoną na przedziale $[-1,1]$\\
+chcemy tak dobrać węzły $x_1, ..., x_n$ oraz wagi $w_1, ..., w_n$, aby suma
+$$\sum_{i=1}^n w_i f(x_i)$$
+najlepiej przybliżała całkę
+\begin{equation}
+    \int_{-1}^1 f(x) dx \label{1}
+\end{equation}
+
+\section{Węzły równoodległe}
+Przybliżanie całki \eqref{1} stosując metodę trapezów (lub metodę trapezów wyższych rzędów)
+w węzłach równoodległych nie przynosi dobrych efektów dla wielomianów wysokiego stopnia.
+
+\section{Algorytm Clenshawa-Curtisa}
+Podstawiając $x = cos \theta $ do rozważanej całki:
+$$\int_{-1}^1 f(x) dx = \int_0^\pi f(cos \theta) sin \theta d \theta$$
+przekształcamy problem całkowania $f(x)$ na całkowanie $f(cos x) sin x$. 
+Możemy to zrobić rozwijając funkcję $f(cos \theta)$ w szereg Fouriera:
+$$f(cos \theta) = \sum_{k=0}^{\infty}{\vphantom{\sum}}' a_k cos(k \theta) \text{,}$$
+Nie pojawiają się współczynniki z $sin(k\theta)$, gdyż funkcja $f(cos\theta)$ jest parzysta.
+W powyższym wzorze współczynniki szeregu Fouriera wynoszą:
+\begin{equation}
+    a_k = \frac{2}{\pi} \int_0^\pi f(cos \theta) cos \theta d \theta \label{2}
+\end{equation}
+Te całki nadal musimy obliczyć numerycznie. Zauważmy, że funkcja $f(cos \theta)$ jest parzysta i okresowa.
+Można zatem przybliżyć całkę \eqref{2} dyskretną transformacją kosinusową w $N+1$ równoodległych punktach
+$\theta_n = \frac{n\pi}{N}$ $(n=0, ..., N)$:
+$$a_k \approx \frac{2}{N}\left(\sum_{n=0}^{N}{\vphantom{\sum}}{''} f(\cos\frac{n\pi}N) \cos\frac{n k \pi}N \right)$$
+którą można obliczyć w czasie $O(N log N)$ korzystając z algorytmu DCT typu I.\\
+Zakłada on, że wartości w punktach ewaluacji po ekstrapolacji byłyby parzyste \\względem $n=0$, oraz parzyste względem $n=N$.\\
+Ostatecznie całkę \eqref{1} można przedstawić:
+$$\int_{-1}^1 f(x) dx = \int_0^\pi f(cos \theta) sin \theta d \theta \approx \sum_{k=0}^{N/2}{\vphantom{\sum}}{''} \frac{2 a_{2k}}{1-(2k)^2}$$
+
+\section{Powiązanie z wielomianami Czebyszewa}
+Zauważmy, że $T_k(cos \theta) = cos(k \theta)$, zatem szereg z poprzedniego działu to tak naprawdę
+wyrażenie funkcji $f(x)$ w bazie wielomianów Czebyszewa:
+$$f(x) = \sum_{k=0}^{\infty}{\vphantom{\sum}}' a_k T_k(x)$$
+Zatem w istocie całkujemy przybliżenie funkcji $f(x)$ w bazie wielomianów Czebyszewa. Stosujemy węzły:
+$$x_k = cos \frac{k \pi}N \text{ } (k=0, .., N)$$
+które są ekstremami wielomianu Czebyszewa $T_N$.
+
+\section{Przeprowadzone doświadczenia}
+Wybrałem 4 klasy funkcji, na których testowane były powyższe metody:
+\begin{enumerate}
+    \item[1.] Funkcje postaci $f'(x)$, gdzie $f(x) = \sum_i \alpha_i exp(-(\frac{x-\mu_i}{\sigma_i})^2)$ (RBF)
+    \item[2.] Funkcje postaci $f'(x)$, gdzie $f(x) = \sum_i \alpha_i cos(a_i x^3 + b_i x^2 + c_i x + d_i)$
+    \item[3.] Funkcje przedziałami stałe o zbiorze wartości $\{0, 1\}$ (funkcje prostokątne)
+    \item[4.] Funkcje będące sumą funkcji z pierwszego punktu i funkcji prostokątnej
+\end{enumerate}
+\subsection{Doświadczenia}
+Dla każdej z klas wylosowałem po 1000 przykładów funkcji.\\
+Za pomocą każdej z trzech metod obliczyłem całkę \eqref{1} oraz błąd względny kwadratury względem
+wyniku analitycznego dla każdej z funkcji. Wykorzystywałem 1024 węzły dla każdej kwadratury.\\
+Przedstawiam ilość cyfr dokładnych dla średniej oraz maksymalnej wartości błędu względnego:
+\subsection{Wyniki}
+\begin{center}
+Ilość cyfr dokładnych dla średniego błędu\\
+\begin{tabular}{ |c||c|c|c|c| } 
+    \hline
+    Ilość węzłów & RBF & Tryg-poly & Rect & RBF+Rect \\ 
+    \hline
+    \hline
+    4 & -4.08 & -3.17 & -0.88 & -2.76 \\
+    \hline
+    16 & 0.75 & 14.56 & -0.77 & -1.26 \\
+    \hline
+    64 & 28.01 & 48.72 & -0.77 & -1.14 \\
+    \hline
+    256 & 48.99 & 49.0 & -0.77 & -1.12 \\
+    \hline
+    1024 & 49.6 & 49.11 & -0.77 & -1.12 \\
+    \hline
+\end{tabular}\\
+Ilość cyfr dokładnych dla najgorszego błędu\\
+\begin{tabular}{ |c||c|c|c|c| } 
+\hline
+Ilość węzłów & RBF & Tryg-poly & Rect & RBF+Rect \\ 
+\hline
+\hline
+
+4 & -11.05 & -9.57 & -6.47 & -10.75 \\
+\hline
+16 & -7.21 & 8.41 & -6.2 & -9.18 \\
+\hline
+64 & 19.8 & 43.47 & -6.1 & -8.98 \\
+\hline
+256 & 41.28 & 43.71 & -6.11 & -8.9 \\
+\hline
+1024 & 42.44 & 43.85 & -6.11 & -8.9 \\
+\hline
+\end{tabular} 
+
+\end{center}
+
+\section{Wnioski}
+\begin{enumerate}
+\item Kwadratura Clenshawa-Curtisa dobrze przybliża całki funkcji, które są gładkie.
+\item Ta kwadratura nie potrafi przybliżyć funkcji nieciągłych, nawet
+gdy owe funkcje są przedziałami ciągłe.
+\item Dużą zaletą tej metody całkowania jest możliwość wykonania obliczeń w czasie $O(n log n)$
+
+\end{enumerate}
+\end{document}

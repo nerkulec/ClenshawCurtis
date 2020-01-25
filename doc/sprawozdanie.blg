@@ -1,0 +1,5 @@
+[0] Config.pm:304> INFO - This is Biber 2.12
+[1] Config.pm:307> INFO - Logfile is 'sprawozdanie.blg'
+[51] biber:315> INFO - === sob sty 25, 2020, 20:20:36
+[87] Biber.pm:371> INFO - Reading 'sprawozdanie.bcf'
+[192] Utils.pm:193> WARN - No data sources defined!
